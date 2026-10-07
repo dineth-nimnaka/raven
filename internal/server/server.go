@@ -78,23 +78,6 @@ func (s *IMAPServer) oauthSASLReady() bool {
 	return s.cfg != nil && s.oauthVal != nil
 }
 
-func (s *IMAPServer) greetingCapabilities(isTLS bool) string {
-	capabilities := []string{"IMAP4rev1"}
-
-	if isTLS {
-		capabilities = append(capabilities, "AUTH=PLAIN", "LOGIN", "SASL-IR")
-	} else {
-		capabilities = append(capabilities, "STARTTLS", "LOGINDISABLED")
-	}
-
-	if s.oauthSASLReady() {
-		capabilities = append(capabilities, "AUTH=OAUTHBEARER", "AUTH=XOAUTH2")
-	}
-
-	capabilities = append(capabilities, "UIDPLUS", "IDLE", "LITERAL+")
-
-	return strings.Join(capabilities, " ")
-}
 
 // GetConfig returns cached process configuration loaded at startup.
 func (s *IMAPServer) GetConfig() *conf.Config {
@@ -130,8 +113,8 @@ func (s *IMAPServer) HandleConnection(conn net.Conn) {
 		Conn:          conn,
 	}
 
-	// Greeting - advertise basic capabilities in greeting
-	s.sendResponse(conn, fmt.Sprintf("* OK [CAPABILITY %s] SQLite IMAP server ready", s.greetingCapabilities(false)))
+	// Greeting - use BuildCapabilities so greeting and CAPABILITY command are always in sync
+	s.sendResponse(conn, fmt.Sprintf("* OK [CAPABILITY %s] SQLite IMAP server ready", strings.Join(auth.BuildCapabilities(s, false), " ")))
 
 	handleClient(s, conn, state)
 }
@@ -227,9 +210,9 @@ func (s *IMAPServer) ExtractUsername(email string) string {
 // HandleSSLConnection handles SSL/TLS connections (delegates to auth package)
 func (s *IMAPServer) HandleSSLConnection(conn net.Conn) {
 	clientHandler := func(conn net.Conn, state *models.ClientState) {
-		// Send greeting for SSL/TLS connections
-		// TLS is active, so AUTH=PLAIN and LOGIN are allowed (no STARTTLS needed)
-		s.sendResponse(conn, fmt.Sprintf("* OK [CAPABILITY %s] SQLite IMAP server ready", s.greetingCapabilities(true)))
+		// Send greeting for SSL/TLS connections using BuildCapabilities so greeting
+		// and CAPABILITY command are always in sync
+		s.sendResponse(conn, fmt.Sprintf("* OK [CAPABILITY %s] SQLite IMAP server ready", strings.Join(auth.BuildCapabilities(s, true), " ")))
 		handleClient(s, conn, state)
 	}
 	auth.HandleSSLConnection(clientHandler, conn)
