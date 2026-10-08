@@ -114,9 +114,13 @@ func (s *IMAPServer) HandleConnection(conn net.Conn) {
 	}
 
 	// Greeting - use BuildCapabilities so greeting and CAPABILITY command are always in sync
-	s.sendResponse(conn, fmt.Sprintf("* OK [CAPABILITY %s] SQLite IMAP server ready", strings.Join(auth.BuildCapabilities(s, false), " ")))
+	s.sendGreeting(conn, false)
 
 	handleClient(s, conn, state)
+}
+
+func (s *IMAPServer) sendGreeting(conn net.Conn, isTLS bool) {
+	s.sendResponse(conn, fmt.Sprintf("* OK [CAPABILITY %s] SQLite IMAP server ready", strings.Join(auth.BuildCapabilities(s, isTLS), " ")))
 }
 
 // ===== Helper functions for new schema =====
@@ -210,9 +214,8 @@ func (s *IMAPServer) ExtractUsername(email string) string {
 // HandleSSLConnection handles SSL/TLS connections (delegates to auth package)
 func (s *IMAPServer) HandleSSLConnection(conn net.Conn) {
 	clientHandler := func(conn net.Conn, state *models.ClientState) {
-		// Send greeting for SSL/TLS connections using BuildCapabilities so greeting
-		// and CAPABILITY command are always in sync
-		s.sendResponse(conn, fmt.Sprintf("* OK [CAPABILITY %s] SQLite IMAP server ready", strings.Join(auth.BuildCapabilities(s, true), " ")))
+		// Send greeting for SSL/TLS connections
+		s.sendGreeting(conn, true)
 		handleClient(s, conn, state)
 	}
 	auth.HandleSSLConnection(clientHandler, conn)
