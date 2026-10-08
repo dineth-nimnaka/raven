@@ -334,12 +334,12 @@ func TestGreeting_MatchesCapabilityCommand(t *testing.T) {
 		{
 			name:     "Plain connection",
 			isTLS:    false,
-			mockConn: NewMockConn,
+			mockConn: func() MockConnInterface { return NewMockConn() },
 		},
 		{
 			name:     "TLS connection",
 			isTLS:    true,
-			mockConn: NewMockTLSConn,
+			mockConn: func() MockConnInterface { return NewMockTLSConn() },
 		},
 	}
 
